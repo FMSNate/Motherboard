@@ -307,9 +307,23 @@ h1 {
 .route-card p,
 .quiet,
 .integration small,
-.mini-card small {
+.mini-card small,
+.import-card p,
+.import-card small,
+.empty-state span {
   color: #667274;
   line-height: 1.45;
+}
+
+.compact-copy {
+  margin: -4px 0 14px;
+}
+
+.calendar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .mini-card {
@@ -342,7 +356,9 @@ h1 {
 
 .provider-row button,
 .card-action,
-.checkout-card button {
+.checkout-card button,
+.calendar-actions button,
+.secondary-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -356,6 +372,13 @@ h1 {
   cursor: pointer;
   font-size: 0.82rem;
   font-weight: 850;
+}
+
+.calendar-actions button,
+.secondary-pill {
+  border: 1px solid #d8e5df;
+  background: #e7f0eb;
+  color: #2c5f5d;
 }
 
 .route-card {
@@ -424,13 +447,74 @@ h1 {
   gap: 12px;
 }
 
+.import-list {
+  display: grid;
+  gap: 12px;
+}
+
 .integration-card,
 .meal-card,
 .checkout-card,
-.departure-card {
+.departure-card,
+.import-card,
+.empty-state {
   border: 1px solid #e5dfd2;
   border-radius: 8px;
   background: #fffdf8;
+}
+
+.import-card {
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+.import-card-main {
+  display: grid;
+  gap: 5px;
+}
+
+.import-card-main > span {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: #e7f0eb;
+  color: #2c5f5d;
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+
+.conflict-callout,
+.clear-callout,
+.logistics-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 10px;
+  line-height: 1.45;
+}
+
+.conflict-callout {
+  background: #fff3e9;
+  color: #9b5142;
+}
+
+.clear-callout,
+.logistics-summary {
+  background: #e7f0eb;
+  color: #2c5f5d;
+}
+
+.empty-state {
+  min-height: 150px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 20px;
+  color: #2c5f5d;
+  text-align: center;
 }
 
 .integration-card {
@@ -519,7 +603,7 @@ h1 {
   min-height: 92px;
   padding: 14px;
   display: grid;
-  grid-template-columns: 120px 1fr 230px;
+  grid-template-columns: 120px 1fr 230px auto;
   align-items: center;
   gap: 16px;
 }
@@ -669,6 +753,12 @@ h1 {
   font-weight: 900;
 }
 
+.compact-button {
+  width: fit-content;
+  min-height: 36px;
+  padding: 0 14px;
+}
+
 .primary-button {
   display: inline-flex;
   align-items: center;
@@ -682,6 +772,67 @@ h1 {
   border: 1px solid #ded9cc;
   background: #fff;
   color: #566466;
+}
+
+.choice-grid,
+.diet-switch {
+  display: grid;
+  gap: 10px;
+}
+
+.choice-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 22px 0;
+}
+
+.choice-grid button,
+.diet-switch button {
+  min-height: 48px;
+  border: 1px solid #ded9cc;
+  border-radius: 8px;
+  background: #fff;
+  color: #1d2527;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+.choice-grid button:hover,
+.diet-switch button.active {
+  border-color: #2c5f5d;
+  background: #e7f0eb;
+  color: #2c5f5d;
+}
+
+.diet-switch {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 20px 0;
+}
+
+.suggestion-list {
+  display: grid;
+  gap: 12px;
+}
+
+.suggestion-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #e5dfd2;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fffdf8;
+}
+
+.suggestion-card div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #2c5f5d;
+}
+
+.suggestion-card p,
+.workflow-placeholder p {
+  color: #667274;
+  line-height: 1.5;
 }
 
 @media (max-width: 1080px) {
@@ -793,6 +944,21 @@ h1 {
     flex-direction: column;
   }
 
+  .choice-grid,
+  .diet-switch {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .calendar-actions button,
+  .secondary-pill {
+    width: 100%;
+  }
+
   .integration-drawer {
     width: 100%;
     height: 88vh;
@@ -839,6 +1005,10 @@ h1 {
   .route-time,
   .route-place {
     align-items: flex-start;
+  }
+
+  .calendar-actions {
+    grid-template-columns: 1fr;
   }
 
   .panel-header h2 {

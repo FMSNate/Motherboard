@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   Baby,
+  AlertTriangle,
   CalendarCheck,
+  CalendarPlus,
   CheckCircle2,
   Car,
   ChefHat,
@@ -17,13 +19,15 @@ import {
   MessageSquareText,
   PlugZap,
   Route,
+  Salad,
   Settings2,
   ShieldCheck,
   ShoppingCart,
   Sparkles,
   Store,
   Users,
-  Utensils
+  Utensils,
+  X
 } from 'lucide-react';
 
 const integrationGroups = [
@@ -53,6 +57,42 @@ const integrationGroups = [
   }
 ];
 
+const importedEventCandidates = [
+  {
+    id: 'import-1',
+    source: 'TeamSnap',
+    childName: 'Avery',
+    title: 'Goalkeeper clinic',
+    type: 'practice',
+    startsAtOffset: { days: 0, hour: 18, minute: 0 },
+    endsAtOffset: { days: 0, hour: 19, minute: 0 },
+    location: 'Lowry Sports Complex',
+    notes: 'Imported after TeamSnap sync. Coach requested parent confirmation.'
+  },
+  {
+    id: 'import-2',
+    source: 'iCal',
+    childName: 'Miles',
+    title: 'Class picnic reminder',
+    type: 'school',
+    startsAtOffset: { days: 3, hour: 11, minute: 30 },
+    endsAtOffset: { days: 3, hour: 12, minute: 30 },
+    location: 'Steck Elementary',
+    notes: 'Imported from school iCal feed.'
+  },
+  {
+    id: 'import-3',
+    source: 'GameChanger',
+    childName: 'Nora',
+    title: 'Softball playoff hold',
+    type: 'game',
+    startsAtOffset: { days: 1, hour: 17, minute: 15 },
+    endsAtOffset: { days: 1, hour: 18, minute: 45 },
+    location: 'Congress Park Field',
+    notes: 'Imported as tentative until coach confirms field assignment.'
+  }
+];
+
 const api = {
   async get(path) {
     const response = await fetch(`/api${path}`);
@@ -69,6 +109,9 @@ export default function App() {
   const [view, setView] = useState('today');
   const [selectedIntegration, setSelectedIntegration] = useState(null);
   const [localConnections, setLocalConnections] = useState({});
+  const [acceptedImportedEvents, setAcceptedImportedEvents] = useState([]);
+  const [logisticsPrompt, setLogisticsPrompt] = useState(null);
+  const [dinnerPrompt, setDinnerPrompt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -113,6 +156,33 @@ export default function App() {
     })),
     [integrations, localConnections]
   );
+
+  const importedEvents = useMemo(
+    () => materializeImportedEvents(importedEventCandidates),
+    []
+  );
+
+  const acceptedEventIds = useMemo(
+    () => new Set(acceptedImportedEvents.map((event) => event.id)),
+    [acceptedImportedEvents]
+  );
+
+  const scheduleWithAcceptedEvents = useMemo(() => {
+    if (!plan) return [];
+    return [...plan.schedule, ...acceptedImportedEvents].sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+  }, [plan, acceptedImportedEvents]);
+
+  const pendingImportedEvents = useMemo(() => {
+    if (!plan) return [];
+    return importedEvents
+      .filter((event) => !acceptedEventIds.has(event.id))
+      .map((event) => ({
+        ...event,
+        conflicts: findConflicts(event, scheduleWithAcceptedEvents)
+      }));
+  }, [acceptedEventIds, importedEvents, plan, scheduleWithAcceptedEvents]);
+
+  const hasWorkflowReadyIntegration = connectedCount > 0;
 
   if (loading && !plan) {
     return (
@@ -178,20 +248,36 @@ export default function App() {
 
       <section className="metric-grid" aria-label="Family overview">
         <Metric icon={Users} label="Children coordinated" value={plan.family.childrenCount} />
-        <Metric icon={CalendarCheck} label="Events in plan" value={plan.schedule.length} />
+        <Metric icon={CalendarCheck} label="Events in plan" value={scheduleWithAcceptedEvents.length} />
         <Metric icon={ShoppingCart} label="Provider actions" value={providerActions.length} />
         <Metric icon={ShieldCheck} label="Connected systems" value={`${connectedCount}/${interactiveIntegrations.length}`} />
       </section>
 
       {view === 'integrations' ? (
-        <IntegrationsView integrations={interactiveIntegrations} onSelect={setSelectedIntegration} />
+        <IntegrationsView
+          integrations={interactiveIntegrations}
+          pendingImportedEvents={pendingImportedEvents}
+          hasWorkflowReadyIntegration={hasWorkflowReadyIntegration}
+          onAcceptEvent={(event) => setAcceptedImportedEvents((current) => [...current, event])}
+          onSelect={setSelectedIntegration}
+        />
       ) : view === 'meals' ? (
-        <MealsView meals={plan.meals} providerActions={providerActions} />
+        <MealsView meals={plan.meals} providerActions={providerActions} onPlanDinner={setDinnerPrompt} />
       ) : view === 'rides' ? (
-        <RidesView routes={plan.routePlan} />
+        <RidesView routes={plan.routePlan} onPlanLogistics={setLogisticsPrompt} />
       ) : (
         <section className="workspace-grid">
-          <PlannerPanel plan={view === 'today' ? { ...plan, schedule: plan.schedule.slice(0, 2) } : plan} />
+          <PlannerPanel
+            plan={view === 'today' ? { ...plan, schedule: getTodayEvents(scheduleWithAcceptedEvents) } : { ...plan, schedule: scheduleWithAcceptedEvents }}
+            onPlanDinner={setDinnerPrompt}
+            onPlanLogistics={setLogisticsPrompt}
+          />
+          {hasWorkflowReadyIntegration ? (
+            <ImportedEventsPanel
+              events={pendingImportedEvents}
+              onAcceptEvent={(event) => setAcceptedImportedEvents((current) => [...current, event])}
+            />
+          ) : null}
           <NannyPanel careBlocks={plan.careBlocks} />
           <ChefPanel meals={plan.meals} providerActions={providerActions} />
           <CarpoolPanel routes={plan.routePlan} />
@@ -210,6 +296,14 @@ export default function App() {
           }}
         />
       ) : null}
+
+      {logisticsPrompt ? (
+        <LogisticsDrawer event={logisticsPrompt} onClose={() => setLogisticsPrompt(null)} />
+      ) : null}
+
+      {dinnerPrompt ? (
+        <DinnerDrawer event={dinnerPrompt} providerActions={providerActions} onClose={() => setDinnerPrompt(null)} />
+      ) : null}
     </main>
   );
 }
@@ -226,7 +320,7 @@ function Metric({ icon: Icon, label, value }) {
   );
 }
 
-function PlannerPanel({ plan }) {
+function PlannerPanel({ plan, onPlanDinner, onPlanLogistics }) {
   return (
     <section className="panel panel-large">
       <PanelHeader icon={CalendarCheck} title="Command Plan" />
@@ -245,6 +339,10 @@ function PlannerPanel({ plan }) {
             <div>
               <strong>{event.title}</strong>
               <span>{event.childName || 'Family'} · {event.location}</span>
+              <div className="calendar-actions">
+                <button onClick={() => onPlanLogistics(event)}>Plan Logistics</button>
+                <button onClick={() => onPlanDinner(event)}>Plan Dinner</button>
+              </div>
             </div>
           </article>
         ))}
@@ -343,9 +441,58 @@ function SportsPanel({ integrations, schedule }) {
   );
 }
 
-function IntegrationsView({ integrations, onSelect }) {
+function ImportedEventsPanel({ events, onAcceptEvent }) {
+  return (
+    <section className="panel panel-large">
+      <PanelHeader icon={CalendarPlus} title="Imported Event Review" />
+      <p className="quiet compact-copy">New events wait here until Motherboard asks whether you want to accept them into the original plan.</p>
+      <div className="import-list">
+        {events.length ? events.map((event) => (
+          <article className="import-card" key={event.id}>
+            <div className="import-card-main">
+              <span>{event.source}</span>
+              <strong>{event.title}</strong>
+              <small>{formatDateTime(event.startsAt)} · {event.childName} · {event.location}</small>
+              <p>{event.notes}</p>
+            </div>
+            {event.conflicts.length ? (
+              <div className="conflict-callout">
+                <AlertTriangle size={16} />
+                <span>Conflict acknowledged with {event.conflicts.map((conflict) => conflict.title).join(', ')}. No events were moved.</span>
+              </div>
+            ) : (
+              <div className="clear-callout">
+                <CheckCircle2 size={16} />
+                <span>No calendar conflict detected.</span>
+              </div>
+            )}
+            <button className="primary-button compact-button" onClick={() => onAcceptEvent(event)}>
+              Accept Event
+            </button>
+          </article>
+        )) : (
+          <article className="empty-state">
+            <CheckCircle2 size={20} />
+            <strong>No imported events waiting.</strong>
+            <span>Accepted events now appear in the calendar plan.</span>
+          </article>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function IntegrationsView({ integrations, pendingImportedEvents, hasWorkflowReadyIntegration, onAcceptEvent, onSelect }) {
   return (
     <section className="prototype-surface">
+      {hasWorkflowReadyIntegration ? (
+        <ImportedEventsPanel events={pendingImportedEvents} onAcceptEvent={onAcceptEvent} />
+      ) : (
+        <article className="integration-panel workflow-placeholder">
+          <PanelHeader icon={CalendarPlus} title="Imported Event Review" />
+          <p>Connect at least one calendar, sports, or food provider to test incoming event approval and conflict acknowledgement.</p>
+        </article>
+      )}
       {integrationGroups.map((group) => {
         const groupIntegrations = integrations.filter((integration) => group.keys.includes(integration.key));
         return (
@@ -429,7 +576,7 @@ function SetupStep({ icon: Icon, title, text }) {
   );
 }
 
-function MealsView({ meals, providerActions }) {
+function MealsView({ meals, providerActions, onPlanDinner }) {
   return (
     <section className="prototype-surface two-column">
       <article className="integration-panel">
@@ -441,6 +588,9 @@ function MealsView({ meals, providerActions }) {
               <h3>{meal.title}</h3>
               <p>{meal.ingredients.join(', ')}</p>
               <small>{meal.allergyNotes.join(', ')}</small>
+              <button className="secondary-pill" onClick={() => onPlanDinner({ title: meal.title, startsAt: meal.date, location: 'Home', childName: 'Family' })}>
+                Plan Dinner
+              </button>
             </div>
           ))}
         </div>
@@ -463,7 +613,7 @@ function MealsView({ meals, providerActions }) {
   );
 }
 
-function RidesView({ routes }) {
+function RidesView({ routes, onPlanLogistics }) {
   return (
     <section className="prototype-surface">
       <article className="integration-panel">
@@ -477,11 +627,81 @@ function RidesView({ routes }) {
                 <p>{route.passenger} to {route.to}</p>
               </div>
               <span>{route.confidence}</span>
+              <button className="secondary-pill" onClick={() => onPlanLogistics(route)}>
+                Plan Logistics
+              </button>
             </div>
           ))}
         </div>
       </article>
     </section>
+  );
+}
+
+function LogisticsDrawer({ event, onClose }) {
+  return (
+    <div className="drawer-backdrop" role="presentation" onClick={onClose}>
+      <aside className="integration-drawer" role="dialog" aria-modal="true" aria-label="Plan logistics" onClick={(clickEvent) => clickEvent.stopPropagation()}>
+        <header className="drawer-header">
+          <div>
+            <span className="drawer-status live">Logistics</span>
+            <h2>{event.title}</h2>
+          </div>
+          <button className="icon-button" onClick={onClose} aria-label="Close logistics"><X size={20} /></button>
+        </header>
+        <p className="drawer-copy">Who is driving, or do you want Motherboard to set up a carpool request?</p>
+        <div className="choice-grid">
+          {['Mom drives', 'Partner drives', 'Grandparent drives', 'Set up carpool'].map((choice) => (
+            <button key={choice}>{choice}</button>
+          ))}
+        </div>
+        <div className="logistics-summary">
+          <Route size={18} />
+          <span>Motherboard will keep the original event time and add only departure reminders, driver ownership, and carpool follow-up tasks.</span>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function DinnerDrawer({ event, providerActions, onClose }) {
+  const [diet, setDiet] = useState('keto');
+  const suggestions = getDinnerSuggestions(diet, providerActions);
+
+  return (
+    <div className="drawer-backdrop" role="presentation" onClick={onClose}>
+      <aside className="integration-drawer" role="dialog" aria-modal="true" aria-label="Plan dinner" onClick={(clickEvent) => clickEvent.stopPropagation()}>
+        <header className="drawer-header">
+          <div>
+            <span className="drawer-status live">Dinner</span>
+            <h2>Plan dinner for {formatDate(event.startsAt || new Date())}</h2>
+          </div>
+          <button className="icon-button" onClick={onClose} aria-label="Close dinner planner"><X size={20} /></button>
+        </header>
+        <p className="drawer-copy">Tell Motherboard the diet pattern and it will populate cook-at-home and buy-dinner options from connected grocery and delivery providers.</p>
+
+        <div className="diet-switch" aria-label="Diet preference">
+          {['keto', 'balanced', 'vegetarian'].map((option) => (
+            <button className={diet === option ? 'active' : ''} key={option} onClick={() => setDiet(option)}>
+              {option}
+            </button>
+          ))}
+        </div>
+
+        <div className="suggestion-list">
+          {suggestions.map((suggestion) => (
+            <article className="suggestion-card" key={suggestion.title}>
+              <div>
+                <Salad size={18} />
+                <strong>{suggestion.title}</strong>
+              </div>
+              <p>{suggestion.description}</p>
+              <button className="primary-button compact-button">{suggestion.action}</button>
+            </article>
+          ))}
+        </div>
+      </aside>
+    </div>
   );
 }
 
@@ -534,4 +754,86 @@ function formatDate(date) {
     month: 'short',
     day: 'numeric'
   }).format(new Date(date));
+}
+
+function materializeImportedEvents(events) {
+  return events.map((event) => ({
+    ...event,
+    startsAt: buildRelativeDate(event.startsAtOffset).toISOString(),
+    endsAt: buildRelativeDate(event.endsAtOffset).toISOString()
+  }));
+}
+
+function buildRelativeDate({ days, hour, minute }) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  date.setHours(hour, minute, 0, 0);
+  return date;
+}
+
+function findConflicts(event, schedule) {
+  const eventStart = new Date(event.startsAt);
+  const eventEnd = new Date(event.endsAt || new Date(eventStart.getTime() + 60 * 60000));
+
+  return schedule.filter((existing) => {
+    if (existing.id === event.id) return false;
+    const existingStart = new Date(existing.startsAt);
+    const existingEnd = new Date(existing.endsAt || new Date(existingStart.getTime() + 60 * 60000));
+    return eventStart < existingEnd && eventEnd > existingStart;
+  });
+}
+
+function getDinnerSuggestions(diet, providerActions) {
+  const groceryProvider = providerActions.find((action) => ['Walmart+', 'Instacart'].includes(action.provider))?.provider || 'Walmart+';
+  const deliveryProvider = providerActions.find((action) => ['DoorDash', 'Uber Eats'].includes(action.provider))?.provider || 'DoorDash';
+  const suggestionsByDiet = {
+    keto: [
+      {
+        title: `Keto chicken taco bowls via ${groceryProvider}`,
+        description: 'Rotisserie chicken, cauliflower rice, avocado, cheese, salsa, and lettuce cups.',
+        action: 'AI Plan Meal'
+      },
+      {
+        title: `Buy dinner: bunless burger bowls via ${deliveryProvider}`,
+        description: 'Protein-forward delivery suggestion with sauce on the side and no fries default.',
+        action: 'Buy Dinner'
+      }
+    ],
+    balanced: [
+      {
+        title: `Sheet-pan salmon and rice via ${groceryProvider}`,
+        description: 'Fast family dinner with vegetables, rice, and a kid-friendly lemon yogurt sauce.',
+        action: 'AI Plan Meal'
+      },
+      {
+        title: `Buy dinner: Mediterranean bowls via ${deliveryProvider}`,
+        description: 'Configurable bowls with protein, grains, vegetables, and allergy notes preserved.',
+        action: 'Buy Dinner'
+      }
+    ],
+    vegetarian: [
+      {
+        title: `Veggie pesto tortellini via ${groceryProvider}`,
+        description: 'One-pot dinner with salad kit, fruit, and lunch leftovers planned automatically.',
+        action: 'AI Plan Meal'
+      },
+      {
+        title: `Buy dinner: veggie sushi and miso via ${deliveryProvider}`,
+        description: 'Quick delivery option with kid-safe substitutions and sesame allergy warning.',
+        action: 'Buy Dinner'
+      }
+    ]
+  };
+
+  return suggestionsByDiet[diet];
+}
+
+function getTodayEvents(schedule) {
+  const today = new Date();
+  const todayEvents = schedule.filter((event) => {
+    const eventDate = new Date(event.startsAt);
+    return eventDate.toDateString() === today.toDateString();
+  });
+
+  return todayEvents.length ? todayEvents : schedule.slice(0, 3);
 }
