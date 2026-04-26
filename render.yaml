@@ -3,14 +3,18 @@ services:
     name: motherboard-assistant-api
     env: node
     plan: starter
+    domains:
+      - mothrboard.ai
+      - www.mothrboard.ai
     buildCommand: npm install && npm run build
     startCommand: npm start
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
       - key: MONGODB_URI
         sync: false
       - key: CLIENT_ORIGIN
-        sync: false
+        value: https://mothrboard.ai
       - key: GOOGLE_MAPS_API_KEY
         sync: false

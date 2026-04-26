@@ -42,9 +42,11 @@ npm run seed
 3. Use `render.yaml` or set:
    - `NODE_ENV=production`
    - `MONGODB_URI`
-   - `CLIENT_ORIGIN`
+   - `CLIENT_ORIGIN=https://mothrboard.ai`
    - provider API credentials as needed
 4. Render runs `npm install && npm run build`, then `npm start`.
+
+The Blueprint is configured for `mothrboard.ai` and `www.mothrboard.ai`. See `DEPLOYMENT_DOMAIN.md` for the DNS steps.
 
 ### Docker
 
