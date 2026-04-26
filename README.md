@@ -48,6 +48,18 @@ npm run seed
 
 The Blueprint is configured for `mothrboard.ai` and `www.mothrboard.ai`. See `DEPLOYMENT_DOMAIN.md` for the DNS steps.
 
+### Heroku
+
+The app is deployed to Heroku app `motherboard`:
+
+```bash
+heroku git:remote --app motherboard
+heroku config:set NODE_ENV=production CLIENT_ORIGIN=https://mothrboard.ai --app motherboard
+git push heroku main
+```
+
+Custom domains are configured in Heroku. See `DEPLOYMENT_DOMAIN.md` for the DNS targets.
+
 ### Docker
 
 ```bash

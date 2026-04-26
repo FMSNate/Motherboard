@@ -1,37 +1,31 @@
-# Connecting `mothrboard.ai`
+# Connecting `mothrboard.ai` on Heroku
 
-The app is configured for `https://mothrboard.ai` in `render.yaml`.
+The app is deployed to Heroku app `motherboard`.
 
-## Render Setup
+Current Heroku app URL:
 
-1. In Render, create or sync the Blueprint from this GitHub repository.
-2. Confirm the web service is named `motherboard-assistant-api`.
-3. In the service settings, open **Custom Domains**.
-4. Confirm these domains are attached:
-   - `mothrboard.ai`
-   - `www.mothrboard.ai`
-5. Wait for Render to show the DNS target values.
+- `https://motherboard-773035ad8502.herokuapp.com/`
 
-## DNS Setup
+Heroku custom domains have been added:
 
-At your domain registrar or DNS provider, add the records Render gives you.
+- `mothrboard.ai`
+- `www.mothrboard.ai`
 
-Typical Render setup:
+## DNS Records
 
-- Root domain `mothrboard.ai`: add Render's provided `A` record or ALIAS/ANAME target.
-- `www.mothrboard.ai`: add a `CNAME` pointing to the service's `.onrender.com` host.
+At your domain registrar or DNS provider, add these records:
 
-Render recommends removing conflicting `AAAA` records while configuring DNS because Render custom domains use IPv4 routing.
+| Host | Type | Value |
+| --- | --- | --- |
+| `mothrboard.ai` | `ALIAS` or `ANAME` | `cryptic-lion-d1f0hx92el8h3yh1rh0deipg.herokudns.com` |
+| `www.mothrboard.ai` | `CNAME` | `functional-melon-96l958i51pazt6187y38kw17.herokudns.com` |
 
-## Verification
+If your DNS provider does not support `ALIAS` or `ANAME` at the root domain, use its equivalent root-domain flattening feature. Cloudflare calls this CNAME flattening.
 
-After DNS is saved:
+## HTTPS
 
-1. Return to Render.
-2. Click **Verify** for the custom domain.
-3. Wait for TLS certificate issuance.
-4. Visit `https://mothrboard.ai`.
+Automatic Certificate Management is enabled in Heroku. It will issue certificates after DNS resolves correctly.
 
 ## Notes
 
-Changing DNS affects live traffic for the domain. Do not remove any existing records unless you know they are not serving another website, email, or verification workflow.
+Changing DNS affects live traffic for the domain. Do not remove existing records unless you know they are not serving another website, email, or verification workflow.
