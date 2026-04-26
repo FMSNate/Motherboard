@@ -1,0 +1,23 @@
+{
+  "name": "Motherboard Assistant",
+  "description": "A MERN stack personal assistant for family logistics, sports schedules, groceries, dinner planning, and carpools.",
+  "repository": "https://github.com/FMSNate/Motherboard",
+  "keywords": ["mern", "family", "calendar", "logistics", "assistant"],
+  "env": {
+    "NODE_ENV": {
+      "value": "production"
+    },
+    "CLIENT_ORIGIN": {
+      "required": false
+    },
+    "MONGODB_URI": {
+      "required": false
+    },
+    "GOOGLE_MAPS_API_KEY": {
+      "required": false
+    }
+  },
+  "scripts": {
+    "postdeploy": "npm run build"
+  }
+}
